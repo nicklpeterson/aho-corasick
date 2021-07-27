@@ -1,3 +1,3 @@
-module nicklpeterson/aho-corasick
+module github.com/nicklpeterson/aho-corasick
 
 go 1.16

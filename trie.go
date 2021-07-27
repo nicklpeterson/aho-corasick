@@ -1,7 +1,10 @@
 package main
 
+import "sync"
+
 type trie struct {
 	nodes []node
+	mutex sync.Mutex
 }
 
 type node struct {
@@ -68,18 +71,17 @@ func (i *trie) getSuffixLink(node int) int {
 }
 
 func (i *trie) transition(node int, c rune) int {
-	if _, tranSet := i.nodes[node].transition[c]; !tranSet {
+	if _, tranSet := i.loadFromTransition(node, c); !tranSet {
 		if _, childSet := i.nodes[node].children[c]; childSet {
-			i.nodes[node].transition[c] = i.nodes[node].children[c]
+			i.storeToTransition(node, c, i.nodes[node].children[c])
 		} else if node == 0 {
-			i.nodes[node].transition[c] = 0
+			i.storeToTransition(node, c, 0)
 		} else {
-			i.nodes[node].transition[c] = i.transition(
-				i.getSuffixLink(node),
-				c)
+			i.storeToTransition(node, c, i.transition(i.getSuffixLink(node), c))
 		}
 	}
-	return i.nodes[node].transition[c]
+	result, _ := i.loadFromTransition(node, c)
+	return result
 }
 
 func (i *trie) getExitLink(node int) int {
@@ -94,4 +96,17 @@ func (i *trie) getExitLink(node int) int {
 		}
 	}
 	return i.nodes[node].exitLink
+}
+
+func (i *trie) storeToTransition(node int, c rune, val int) {
+	i.mutex.Lock()
+	i.nodes[node].transition[c] = val
+	i.mutex.Unlock()
+}
+
+func (i *trie) loadFromTransition(node int, c rune) (int, bool) {
+	i.mutex.Lock()
+	val, ok := i.nodes[node].transition[c]
+	i.mutex.Unlock()
+	return val, ok
 }
